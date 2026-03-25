@@ -7,7 +7,7 @@ from datetime import datetime
 DB_FILE = "data.csv"
 
 # 페이지 설정
-st.set_page_config(page_title="홍지의 지식 저장소", layout="wide")
+st.set_page_config(page_title="지식 저장소", layout="wide")
 
 # 데이터 로드 함수 (파일이 없으면 새로 생성)
 def load_data():
@@ -15,12 +15,12 @@ def load_data():
         return pd.read_csv(DB_FILE)
     return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
 
-st.title("📝 홍지의 심플 지식 저장소")
+st.title("📝 심플 지식 저장소")
 st.info("회사나 집, 핸드폰 어디서든 접속해서 메모를 남기세요.")
 
 # 입력 폼
 with st.form("input_form", clear_on_submit=True):
-    col1, col2 = st.columns()
+    col1, col2 = st.columns(2)
     with col1:
         title = st.text_input("📌 제목", placeholder="오늘의 주제를 적어주세요")
     with col2:
