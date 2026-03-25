@@ -7,7 +7,7 @@ from datetime import datetime
 DB_FILE = "data.csv"
 
 # 페이지 설정 (브라우저 탭 제목 및 넓은 레이아웃)
-st.set_page_config(page_title="홍지의 지식 저장소", layout="wide")
+st.set_page_config(page_title="지식 저장소", layout="wide")
 
 # 데이터 로드 함수 (파일이 없으면 빈 데이터프레임 반환)
 def load_data():
@@ -18,7 +18,7 @@ def load_data():
             return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
     return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
 
-st.title("📝 홍지의 심플 지식 저장소")
+st.title("📝 심플 지식 저장소")
 st.info("회사나 집, 핸드폰 어디서든 접속해서 메모를 남기세요.")
 
 # 입력 폼 (저장 시 입력창 초기화)
