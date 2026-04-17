@@ -66,6 +66,21 @@ data = load_data()
 
 if not data.empty:
     # 날짜 기준 내림차순 정렬하여 최신글이 위로 오게 함
-    st.dataframe(data.sort_values("날짜", ascending=False), use_container_width=True)
+    sorted_data = data.sort_values("날짜", ascending=False)
+    st.dataframe(sorted_data, use_container_width=True)
+    
+    # 삭제 기능 추가
+    with st.expander("🗑️ 기록 삭제하기"):
+        # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
+        delete_options = data["날짜"] + " | " + data["제목"]
+        selected_option = st.selectbox("삭제할 항목을 선택하세요:", delete_options)
+        
+        if st.button("🔴 선택한 항목 삭제", use_container_width=True):
+            # 선택한 '날짜'를 기준으로 데이터 삭제 (날짜는 유니크하다고 가정)
+            selected_date = selected_option.split(" | ")[0]
+            new_df = data[data["날짜"] != selected_date]
+            new_df.to_csv(DB_FILE, index=False)
+            st.success(f"항목이 삭제되었습니다.")
+            st.rerun() # 화면 갱신
 else:
     st.write("아직 저장된 기록이 없습니다. 첫 글을 남겨보세요!")
