@@ -10,7 +10,7 @@ st.set_page_config(page_title="지식 저장소", layout="wide")
 
 # Google Sheets API 연동
 SHEET_ID = "1Skjg1T9KSeXsn15RJ9iQBgdZM0qTD1gS9CzfuAb1FWc"
-SHEET_NAME = "Sheet1"
+SHEET_NAME = "지식저장소"
 
 @st.cache_resource
 def get_gsheet_client():
