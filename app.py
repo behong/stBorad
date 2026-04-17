@@ -1,22 +1,43 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
-
-# 데이터 저장 파일명
-DB_FILE = "data.csv"
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 # 페이지 설정 (브라우저 탭 제목 및 넓은 레이아웃)
 st.set_page_config(page_title="지식 저장소", layout="wide")
 
-# 데이터 로드 함수 (파일이 없으면 빈 데이터프레임 반환)
+# Google Sheets API 연동
+SHEET_ID = "1Skjg1T9KSeXsn15RJ9iQBgdZM0qTD1gS9CzfuAb1FWc"
+SHEET_NAME = "Sheet1"
+
+@st.cache_resource
+def get_gsheet_client():
+    credentials_dict = st.secrets["gcp_service_account"]
+    scope = ["https://spreadsheets.google.com/feeds", 
+             "https://www.googleapis.com/auth/drive"]
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scopes=scope)
+    client = gspread.authorize(credentials)
+    return client
+
+def get_worksheet():
+    client = get_gsheet_client()
+    spreadsheet = client.open_by_key(SHEET_ID)
+    return spreadsheet.worksheet(SHEET_NAME)
+
+# 데이터 로드 함수
 def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            return pd.read_csv(DB_FILE)
-        except:
+    try:
+        worksheet = get_worksheet()
+        data = worksheet.get_all_records()
+        if data:
+            return pd.DataFrame(data)
+        else:
             return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
-    return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
+    except Exception as e:
+        st.error(f"데이터 로드 오류: {e}")
+        return pd.DataFrame(columns=["날짜", "제목", "내용", "카테고리"])
 
 st.title("📝 심플 지식 저장소")
 st.info("회사나 집, 핸드폰 어디서든 접속해서 메모를 남기세요.")
@@ -36,25 +57,26 @@ with st.form("input_form", clear_on_submit=True):
 
     if submitted:
         if content: # 내용은 필수
-            # 제목이 없을 경우 자동 생성 로직
-            if not title.strip():
-                now_str = datetime.now().strftime("%m월 %d일 %H:%M 메모")
-                title = f"📝 {now_str}"
-            
-            df = load_data()
-            new_row = {
-                "날짜": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "제목": title,
-                "내용": content,
-                "카테고리": category
-            }
-            
-            # 데이터 추가 및 CSV 저장
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_csv(DB_FILE, index=False)
-            
-            st.success(f"'{title}' 제목으로 저장되었습니다!")
-            st.balloons() # 성공 축하 효과
+            try:
+                # 제목이 없을 경우 자동 생성 로직
+                if not title.strip():
+                    now_str = datetime.now().strftime("%m월 %d일 %H:%M 메모")
+                    title = f"📝 {now_str}"
+                
+                worksheet = get_worksheet()
+                new_row = [
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    title,
+                    content,
+                    category
+                ]
+                worksheet.append_row(new_row)
+                
+                st.success(f"'{title}' 제목으로 저장되었습니다!")
+                st.balloons() # 성공 축하 효과
+                st.rerun()
+            except Exception as e:
+                st.error(f"저장 오류: {e}")
         else:
             st.error("내용을 입력해주세요.")
 
@@ -76,11 +98,23 @@ if not data.empty:
         selected_option = st.selectbox("삭제할 항목을 선택하세요:", delete_options)
         
         if st.button("🔴 선택한 항목 삭제", use_container_width=True):
-            # 선택한 '날짜'를 기준으로 데이터 삭제 (날짜는 유니크하다고 가정)
-            selected_date = selected_option.split(" | ")[0]
-            new_df = data[data["날짜"] != selected_date]
-            new_df.to_csv(DB_FILE, index=False)
-            st.success(f"항목이 삭제되었습니다.")
-            st.rerun() # 화면 갱신
+            try:
+                # 선택한 '날짜'를 기준으로 데이터 삭제
+                selected_date = selected_option.split(" | ")[0]
+                worksheet = get_worksheet()
+                
+                # 전체 데이터 가져오기
+                all_data = worksheet.get_all_values()
+                
+                # 해당 행 찾아 삭제
+                for i, row in enumerate(all_data):
+                    if row and row[0] == selected_date:  # 날짜 열 확인
+                        worksheet.delete_rows(i + 1)  # Google Sheets의 행 번호는 1부터 시작
+                        break
+                
+                st.success(f"항목이 삭제되었습니다.")
+                st.rerun()  # 화면 갱신
+            except Exception as e:
+                st.error(f"삭제 오류: {e}")
 else:
     st.write("아직 저장된 기록이 없습니다. 첫 글을 남겨보세요!")
