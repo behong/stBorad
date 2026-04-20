@@ -106,38 +106,47 @@ if not data.empty:
     if "selected_rows" not in st.session_state:
         st.session_state.selected_rows = [False] * len(sorted_data)
     
+    # 날짜 형식 변환 함수
+    def format_date(date_str):
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(str(date_str), "%Y-%m-%d %H:%M:%S")
+            return dt.strftime("%y%m%d-%H%M")
+        except:
+            return str(date_str)
+    
     # 테이블 헤더
-    header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([0.5, 2, 2, 3, 2])
+    header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([0.5, 2, 3, 2, 1.2])
     with header_col1:
         st.write("**☑️**")
     with header_col2:
-        st.write("**날짜**")
-    with header_col3:
         st.write("**제목**")
-    with header_col4:
+    with header_col3:
         st.write("**내용**")
-    with header_col5:
+    with header_col4:
         st.write("**카테고리**")
+    with header_col5:
+        st.write("**날짜**")
     
     st.divider()
     
     # 각 행에 체크박스 추가
     for idx, row in sorted_data.iterrows():
-        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 2, 3, 2])
+        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 3, 2, 1.2])
         
         with col1:
             st.session_state.selected_rows[idx] = st.checkbox("", value=st.session_state.selected_rows[idx], key=f"checkbox_{idx}")
         
         with col2:
-            st.write(row["날짜"])
-        with col3:
             st.write(row["제목"])
-        with col4:
+        with col3:
             # 내용이 길면 일부만 표시
             content_preview = row["내용"][:50] + "..." if len(str(row["내용"])) > 50 else row["내용"]
             st.write(content_preview)
-        with col5:
+        with col4:
             st.write(row["카테고리"])
+        with col5:
+            st.write(format_date(row["날짜"]))
     
     st.divider()
     
