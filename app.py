@@ -24,7 +24,14 @@ def get_gsheet_client():
 def get_worksheet():
     client = get_gsheet_client()
     spreadsheet = client.open_by_key(SHEET_ID)
-    return spreadsheet.worksheet(SHEET_NAME)
+    try:
+        return spreadsheet.worksheet(SHEET_NAME)
+    except gspread.exceptions.WorksheetNotFound:
+        # 워크시트가 없으면 생성
+        worksheet = spreadsheet.add_worksheet(title=SHEET_NAME, rows=1000, cols=4)
+        # 헤더 추가
+        worksheet.append_row(["날짜", "제목", "내용", "카테고리"])
+        return worksheet
 
 # 데이터 로드 함수
 def load_data():
@@ -72,9 +79,14 @@ with st.form("input_form", clear_on_submit=True):
                 ]
                 worksheet.append_row(new_row)
                 
-                st.success(f"'{title}' 제목으로 저장되었습니다!")
-                st.balloons() # 성공 축하 효과
-                st.rerun()
+                # 저장 확인을 위해 데이터 다시 로드
+                updated_data = load_data()
+                if not updated_data.empty and any(updated_data["날짜"] == new_row[0]):
+                    st.success(f"'{title}' 제목으로 저장되었습니다!")
+                    st.balloons() # 성공 축하 효과
+                    st.rerun()
+                else:
+                    st.error("저장되었지만 데이터 확인에 실패했습니다. 시트 권한을 확인하세요.")
             except Exception as e:
                 st.error(f"저장 오류: {e}")
         else:
@@ -93,28 +105,60 @@ if not data.empty:
     
     # 삭제 기능 추가
     with st.expander("🗑️ 기록 삭제하기"):
-        # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
-        delete_options = data["날짜"] + " | " + data["제목"]
-        selected_option = st.selectbox("삭제할 항목을 선택하세요:", delete_options)
+        col1, col2 = st.columns(2)
         
-        if st.button("🔴 선택한 항목 삭제", use_container_width=True):
-            try:
-                # 선택한 '날짜'를 기준으로 데이터 삭제
-                selected_date = selected_option.split(" | ")[0]
-                worksheet = get_worksheet()
+        with col1:
+            st.write("**개별 삭제**")
+            # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
+            delete_options = data["날짜"] + " | " + data["제목"]
+            selected_option = st.selectbox("삭제할 항목을 선택하세요:", delete_options)
+            
+            if st.button("🔴 선택한 항목 삭제", use_container_width=True):
+                try:
+                    # 선택한 '날짜'를 기준으로 데이터 삭제
+                    selected_date = selected_option.split(" | ")[0]
+                    worksheet = get_worksheet()
+                    
+                    # 전체 데이터 가져오기
+                    all_data = worksheet.get_all_values()
+                    
+                    # 해당 행 찾아 삭제
+                    for i, row in enumerate(all_data):
+                        if row and row[0] == selected_date:  # 날짜 열 확인
+                            worksheet.delete_rows(i + 1)  # Google Sheets의 행 번호는 1부터 시작
+                            break
+                    
+                    st.success(f"항목이 삭제되었습니다.")
+                    st.rerun()  # 화면 갱신
+                except Exception as e:
+                    st.error(f"삭제 오류: {e}")
+        
+        with col2:
+            st.write("**다 건 삭제**")
+            if st.button("🔴🔴 모든 기록 삭제", use_container_width=True):
+                st.warning("⚠️ 정말로 모든 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
                 
-                # 전체 데이터 가져오기
-                all_data = worksheet.get_all_values()
+                col_confirm1, col_confirm2 = st.columns(2)
+                with col_confirm1:
+                    if st.button("✅ 확인 - 삭제", use_container_width=True, key="confirm_delete_all"):
+                        try:
+                            worksheet = get_worksheet()
+                            
+                            # 전체 데이터 가져오기
+                            all_data = worksheet.get_all_values()
+                            
+                            # 헤더를 제외한 모든 행 삭제 (역순으로 삭제하여 인덱스 오류 방지)
+                            if len(all_data) > 1:  # 헤더가 있으므로 1보다 크면 데이터가 있음
+                                for i in range(len(all_data) - 1, 0, -1):
+                                    worksheet.delete_rows(i + 1)
+                            
+                            st.success("✅ 모든 기록이 삭제되었습니다.")
+                            st.rerun()  # 화면 갱신
+                        except Exception as e:
+                            st.error(f"삭제 오류: {e}")
                 
-                # 해당 행 찾아 삭제
-                for i, row in enumerate(all_data):
-                    if row and row[0] == selected_date:  # 날짜 열 확인
-                        worksheet.delete_rows(i + 1)  # Google Sheets의 행 번호는 1부터 시작
-                        break
-                
-                st.success(f"항목이 삭제되었습니다.")
-                st.rerun()  # 화면 갱신
-            except Exception as e:
-                st.error(f"삭제 오류: {e}")
+                with col_confirm2:
+                    if st.button("❌ 취소", use_container_width=True, key="cancel_delete_all"):
+                        st.info("삭제가 취소되었습니다.")
 else:
     st.write("아직 저장된 기록이 없습니다. 첫 글을 남겨보세요!")
