@@ -101,34 +101,69 @@ data = load_data()
 if not data.empty:
     # 날짜 기준 내림차순 정렬하여 최신글이 위로 오게 함
     sorted_data = data.sort_values("날짜", ascending=False).reset_index(drop=True)
-    st.dataframe(sorted_data, use_container_width=True, hide_index=True)
     
-    st.write("**삭제할 항목을 선택하세요:**")
-    # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
-    delete_options = sorted_data["날짜"].astype(str) + " | " + sorted_data["제목"].astype(str)
-    selected_options = st.multiselect("", delete_options, label_visibility="collapsed")
+    # 초기화: session_state에 체크박스 상태 저장
+    if "selected_rows" not in st.session_state:
+        st.session_state.selected_rows = [False] * len(sorted_data)
+    
+    # 테이블 헤더
+    header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([0.5, 2, 2, 3, 2])
+    with header_col1:
+        st.write("**☑️**")
+    with header_col2:
+        st.write("**날짜**")
+    with header_col3:
+        st.write("**제목**")
+    with header_col4:
+        st.write("**내용**")
+    with header_col5:
+        st.write("**카테고리**")
+    
+    st.divider()
+    
+    # 각 행에 체크박스 추가
+    for idx, row in sorted_data.iterrows():
+        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 2, 3, 2])
+        
+        with col1:
+            st.session_state.selected_rows[idx] = st.checkbox("", value=st.session_state.selected_rows[idx], key=f"checkbox_{idx}")
+        
+        with col2:
+            st.write(row["날짜"])
+        with col3:
+            st.write(row["제목"])
+        with col4:
+            # 내용이 길면 일부만 표시
+            content_preview = row["내용"][:50] + "..." if len(str(row["내용"])) > 50 else row["내용"]
+            st.write(content_preview)
+        with col5:
+            st.write(row["카테고리"])
+    
+    st.divider()
     
     # 삭제 버튼 레이아웃
     col1, col2, col3 = st.columns([1, 1, 2])
     
     with col1:
         if st.button("🔴 선택 삭제", use_container_width=True):
-            if selected_options:
+            selected_indices = [i for i, selected in enumerate(st.session_state.selected_rows) if selected]
+            
+            if selected_indices:
                 try:
                     worksheet = get_worksheet()
                     
                     # 전체 데이터 가져오기
                     all_data = worksheet.get_all_values()
                     
-                    # 선택된 항목의 날짜들 추출
-                    selected_dates = [option.split(" | ")[0] for option in selected_options]
+                    # 선택된 행의 날짜들 추출
+                    selected_dates = [sorted_data.iloc[idx]["날짜"] for idx in selected_indices]
                     
                     # 역순으로 삭제하여 인덱스 오류 방지
                     for i in range(len(all_data) - 1, 0, -1):
-                        if all_data[i] and all_data[i][0] in selected_dates:
+                        if all_data[i] and str(all_data[i][0]) in [str(d) for d in selected_dates]:
                             worksheet.delete_rows(i + 1)
                     
-                    st.success(f"{len(selected_options)}개 항목이 삭제되었습니다.")
+                    st.success(f"{len(selected_indices)}개 항목이 삭제되었습니다.")
                     st.rerun()  # 화면 갱신
                 except Exception as e:
                     st.error(f"삭제 오류: {e}")
