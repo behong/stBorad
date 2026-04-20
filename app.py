@@ -110,7 +110,7 @@ if not data.empty:
         with col1:
             st.write("**선택 삭제**")
             # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
-            delete_options = data["날짜"] + " | " + data["제목"]
+            delete_options = data["날짜"].astype(str) + " | " + data["제목"].astype(str)
             selected_options = st.multiselect("삭제할 항목을 선택하세요:", delete_options)
             
             if st.button("🔴 선택한 항목 삭제", use_container_width=True):
