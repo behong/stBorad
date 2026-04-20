@@ -100,68 +100,66 @@ data = load_data()
 
 if not data.empty:
     # 날짜 기준 내림차순 정렬하여 최신글이 위로 오게 함
-    sorted_data = data.sort_values("날짜", ascending=False)
-    st.dataframe(sorted_data, use_container_width=True)
+    sorted_data = data.sort_values("날짜", ascending=False).reset_index(drop=True)
+    st.dataframe(sorted_data, use_container_width=True, hide_index=True)
     
-    # 삭제 기능 추가
-    with st.expander("🗑️ 기록 삭제하기"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**선택 삭제**")
-            # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
-            delete_options = data["날짜"].astype(str) + " | " + data["제목"].astype(str)
-            selected_options = st.multiselect("삭제할 항목을 선택하세요:", delete_options)
-            
-            if st.button("🔴 선택한 항목 삭제", use_container_width=True):
-                if selected_options:
-                    try:
-                        worksheet = get_worksheet()
-                        
-                        # 전체 데이터 가져오기
-                        all_data = worksheet.get_all_values()
-                        
-                        # 선택된 항목의 날짜들 추출
-                        selected_dates = [option.split(" | ")[0] for option in selected_options]
-                        
-                        # 역순으로 삭제하여 인덱스 오류 방지
+    st.write("**삭제할 항목을 선택하세요:**")
+    # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
+    delete_options = sorted_data["날짜"].astype(str) + " | " + sorted_data["제목"].astype(str)
+    selected_options = st.multiselect("", delete_options, label_visibility="collapsed")
+    
+    # 삭제 버튼 레이아웃
+    col1, col2, col3 = st.columns([1, 1, 2])
+    
+    with col1:
+        if st.button("🔴 선택 삭제", use_container_width=True):
+            if selected_options:
+                try:
+                    worksheet = get_worksheet()
+                    
+                    # 전체 데이터 가져오기
+                    all_data = worksheet.get_all_values()
+                    
+                    # 선택된 항목의 날짜들 추출
+                    selected_dates = [option.split(" | ")[0] for option in selected_options]
+                    
+                    # 역순으로 삭제하여 인덱스 오류 방지
+                    for i in range(len(all_data) - 1, 0, -1):
+                        if all_data[i] and all_data[i][0] in selected_dates:
+                            worksheet.delete_rows(i + 1)
+                    
+                    st.success(f"{len(selected_options)}개 항목이 삭제되었습니다.")
+                    st.rerun()  # 화면 갱신
+                except Exception as e:
+                    st.error(f"삭제 오류: {e}")
+            else:
+                st.warning("삭제할 항목을 선택해주세요.")
+    
+    with col2:
+        if st.button("🔴🔴 전체 삭제", use_container_width=True):
+            if st.session_state.get("confirm_delete_all", False):
+                try:
+                    worksheet = get_worksheet()
+                    
+                    # 전체 데이터 가져오기
+                    all_data = worksheet.get_all_values()
+                    
+                    # 헤더를 제외한 모든 행 삭제 (역순으로 삭제하여 인덱스 오류 방지)
+                    if len(all_data) > 1:  # 헤더가 있으므로 1보다 크면 데이터가 있음
                         for i in range(len(all_data) - 1, 0, -1):
-                            if all_data[i] and all_data[i][0] in selected_dates:
-                                worksheet.delete_rows(i + 1)
-                        
-                        st.success(f"{len(selected_options)}개 항목이 삭제되었습니다.")
-                        st.rerun()  # 화면 갱신
-                    except Exception as e:
-                        st.error(f"삭제 오류: {e}")
-                else:
-                    st.warning("삭제할 항목을 선택해주세요.")
-        
-        with col2:
-            st.write("**다 건 삭제**")
-            if st.button("🔴🔴 모든 기록 삭제", use_container_width=True):
-                st.warning("⚠️ 정말로 모든 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
-                
-                col_confirm1, col_confirm2 = st.columns(2)
-                with col_confirm1:
-                    if st.button("✅ 확인 - 삭제", use_container_width=True, key="confirm_delete_all"):
-                        try:
-                            worksheet = get_worksheet()
-                            
-                            # 전체 데이터 가져오기
-                            all_data = worksheet.get_all_values()
-                            
-                            # 헤더를 제외한 모든 행 삭제 (역순으로 삭제하여 인덱스 오류 방지)
-                            if len(all_data) > 1:  # 헤더가 있으므로 1보다 크면 데이터가 있음
-                                for i in range(len(all_data) - 1, 0, -1):
-                                    worksheet.delete_rows(i + 1)
-                            
-                            st.success("✅ 모든 기록이 삭제되었습니다.")
-                            st.rerun()  # 화면 갱신
-                        except Exception as e:
-                            st.error(f"삭제 오류: {e}")
-                
-                with col_confirm2:
-                    if st.button("❌ 취소", use_container_width=True, key="cancel_delete_all"):
-                        st.info("삭제가 취소되었습니다.")
+                            worksheet.delete_rows(i + 1)
+                    
+                    st.success("✅ 모든 기록이 삭제되었습니다.")
+                    st.session_state.confirm_delete_all = False
+                    st.rerun()  # 화면 갱신
+                except Exception as e:
+                    st.error(f"삭제 오류: {e}")
+            else:
+                st.session_state.confirm_delete_all = True
+                st.rerun()
+    
+    # 확인 메시지
+    if st.session_state.get("confirm_delete_all", False):
+        st.warning("⚠️ 정말로 모든 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다. 다시 클릭해주세요.")
 else:
     st.write("아직 저장된 기록이 없습니다. 첫 글을 남겨보세요!")
