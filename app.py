@@ -108,30 +108,33 @@ if not data.empty:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**개별 삭제**")
+            st.write("**선택 삭제**")
             # 삭제할 항목을 선택하기 쉽게 '날짜 | 제목' 형식으로 표시
             delete_options = data["날짜"] + " | " + data["제목"]
-            selected_option = st.selectbox("삭제할 항목을 선택하세요:", delete_options)
+            selected_options = st.multiselect("삭제할 항목을 선택하세요:", delete_options)
             
             if st.button("🔴 선택한 항목 삭제", use_container_width=True):
-                try:
-                    # 선택한 '날짜'를 기준으로 데이터 삭제
-                    selected_date = selected_option.split(" | ")[0]
-                    worksheet = get_worksheet()
-                    
-                    # 전체 데이터 가져오기
-                    all_data = worksheet.get_all_values()
-                    
-                    # 해당 행 찾아 삭제
-                    for i, row in enumerate(all_data):
-                        if row and row[0] == selected_date:  # 날짜 열 확인
-                            worksheet.delete_rows(i + 1)  # Google Sheets의 행 번호는 1부터 시작
-                            break
-                    
-                    st.success(f"항목이 삭제되었습니다.")
-                    st.rerun()  # 화면 갱신
-                except Exception as e:
-                    st.error(f"삭제 오류: {e}")
+                if selected_options:
+                    try:
+                        worksheet = get_worksheet()
+                        
+                        # 전체 데이터 가져오기
+                        all_data = worksheet.get_all_values()
+                        
+                        # 선택된 항목의 날짜들 추출
+                        selected_dates = [option.split(" | ")[0] for option in selected_options]
+                        
+                        # 역순으로 삭제하여 인덱스 오류 방지
+                        for i in range(len(all_data) - 1, 0, -1):
+                            if all_data[i] and all_data[i][0] in selected_dates:
+                                worksheet.delete_rows(i + 1)
+                        
+                        st.success(f"{len(selected_options)}개 항목이 삭제되었습니다.")
+                        st.rerun()  # 화면 갱신
+                    except Exception as e:
+                        st.error(f"삭제 오류: {e}")
+                else:
+                    st.warning("삭제할 항목을 선택해주세요.")
         
         with col2:
             st.write("**다 건 삭제**")
