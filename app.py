@@ -4,6 +4,12 @@ from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+# TikTok 인증 파일 서빙
+if "tiktokRLEG9sUvEPYFsdZvKpexHPk7NfrL2ngJ" in st.query_params.get("path", ""):
+    with open("static/tiktokRLEG9sUvEPYFsdZvKpexHPk7NfrL2ngJ.txt") as f:
+        st.write(f.read())
+    st.stop()
+
 # 페이지 설정 (브라우저 탭 제목 및 넓은 레이아웃)
 st.set_page_config(page_title="지식 저장소", layout="wide")
 
