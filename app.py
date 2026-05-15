@@ -174,9 +174,16 @@ if not data.empty:
         with col2 if st.session_state.is_admin else col1:
             st.write(row["제목"])
         with col3 if st.session_state.is_admin else col2:
-            # 내용이 길면 일부만 표시
+            # 내용이 길면 일부만 표시하고 클릭하면 팝업으로 전체 내용 표시
             content_preview = row["내용"][:50] + "..." if len(str(row["내용"])) > 50 else row["내용"]
-            st.write(content_preview)
+            if len(str(row["내용"])) > 50:
+                if st.button(f"📖 {content_preview}", key=f"expand_{idx}"):
+                    st.session_state[f"show_full_{idx}"] = not st.session_state.get(f"show_full_{idx}", False)
+                if st.session_state.get(f"show_full_{idx}", False):
+                    with st.expander("전체 내용 보기", expanded=True):
+                        st.write(row["내용"])
+            else:
+                st.write(content_preview)
         with col4 if st.session_state.is_admin else col3:
             st.write(row["카테고리"])
         with col5 if st.session_state.is_admin else col4:
